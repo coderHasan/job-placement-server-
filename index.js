@@ -25,10 +25,39 @@ async function run() {
   try {
     const db = client.db("solop-db");
     const jobCollection = db.collection("jobs");
+    const bidCollection = db.collection("bidData");
 
     app.post("/add-job", async (req, res) => {
       const query = req.body;
       const result = await jobCollection.insertOne(query);
+      res.send(result);
+    });
+    app.post("/add-bid", async (req, res) => {
+      const body = req.body;
+      const existQuery = { email: body.email, jobId: body.jobId };
+      const isExist = await bidCollection.findOne(existQuery);
+      if (isExist)
+        return res.status(400).send("You have alredy place a bid in this job");
+      const result = await bidCollection.insertOne(body);
+
+      const query = { _id: new ObjectId(body.jobId) };
+      const update = {
+        $inc: { bid_count: 1 },
+      };
+      const updateBid = await jobCollection.updateOne(query, update);
+      res.send(result);
+    });
+
+    app.get("/bids/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await bidCollection.find(query).toArray();
+      res.send(result);
+    });
+    app.get("/requist-bid/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { buyer: email };
+      const result = await bidCollection.find(query).toArray();
       res.send(result);
     });
 
